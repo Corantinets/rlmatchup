@@ -507,5 +507,11 @@ function initTestTournaments() {
 initTestTournaments();
 */
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`RLMatchup server on port ${PORT}`));
+// Export pour Vercel (serverless)
+export default app;
+
+// Démarrage local uniquement (pas sur Vercel)
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`RLMatchup server on port ${PORT}`));
+}
