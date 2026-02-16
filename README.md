@@ -52,6 +52,64 @@ node server.js
 
 Le serveur démarre sur `http://localhost:3000`
 
+## 🚀 Déploiement sur Vercel
+
+### Prérequis
+1. Compte [Vercel](https://vercel.com) (gratuit)
+2. Compte [Upstash](https://upstash.com) pour Redis (gratuit)
+
+### Étapes de déploiement
+
+#### 1. Créer une base de données Redis sur Upstash
+
+1. Créez un compte sur [Upstash](https://console.upstash.com)
+2. Créez une nouvelle base de données Redis :
+   - **Name** : `rlmatchup-db`
+   - **Region** : Choisissez la région la plus proche de vos utilisateurs
+   - **Type** : Regional (gratuit)
+3. Notez les valeurs suivantes (onglet **REST API**) :
+   - `UPSTASH_REDIS_REST_URL`
+   - `UPSTASH_REDIS_REST_TOKEN`
+
+#### 2. Déployer sur Vercel
+
+**Option A : Via l'interface Vercel**
+
+1. Connectez-vous à [Vercel](https://vercel.com)
+2. Cliquez sur **"New Project"**
+3. Importez votre dépôt GitHub `rlmatchup`
+4. Dans **Environment Variables**, ajoutez :
+   ```
+   TRACKER_API_KEY=votre_clé_tracker_gg
+   UPSTASH_REDIS_REST_URL=votre_url_upstash
+   UPSTASH_REDIS_REST_TOKEN=votre_token_upstash
+   ```
+5. Cliquez sur **Deploy**
+
+**Option B : Via CLI**
+
+```bash
+# Installer Vercel CLI
+npm i -g vercel
+
+# Déployer
+vercel
+
+# Configurer les variables d'environnement
+vercel env add TRACKER_API_KEY
+vercel env add UPSTASH_REDIS_REST_URL
+vercel env add UPSTASH_REDIS_REST_TOKEN
+
+# Redéployer avec les variables
+vercel --prod
+```
+
+#### 3. Tester le déploiement
+
+Votre application sera disponible sur : `https://rlmatchup-xxx.vercel.app`
+
+> **💡 Note** : En local, l'application fonctionne toujours avec le stockage en mémoire (Map). Redis est uniquement utilisé en production sur Vercel.
+
 ## 📖 Utilisation
 
 ### Créer un tournoi
@@ -90,17 +148,24 @@ Après avoir assigné manuellement certains joueurs, cliquez sur **"Générer le
 
 ```
 rlmatchup/
-├── server.js          # API Backend (Express)
+├── server.js          # API Backend (Express + Redis)
 ├── public/
 │   ├── index.html     # Page d'accueil
 │   ├── create.html    # Création de tournoi
 │   ├── browse.html    # Navigation des tournois
 │   ├── tournament.html # Détails du tournoi
 │   └── style.css      # Styles
-├── .env               # Configuration (non versionné)
+├── .env               # Configuration locale (non versionné)
+├── .env.example       # Template de configuration
+├── vercel.json        # Configuration Vercel
 ├── package.json       # Dépendances
 └── README.md
 ```
+
+### Stockage des données
+
+- **Local** : Map (en mémoire) - données perdues au redémarrage
+- **Production (Vercel)** : Upstash Redis - persistance partagée entre instances serverless
 
 ## 🔧 API Endpoints
 
@@ -120,15 +185,17 @@ rlmatchup/
 - ✅ Clé API protégée dans `.env` (exclu de Git)
 - ✅ Identification créateur via `localStorage` (côté client)
 - ✅ Vérification Epic ID case-insensitive (évite les doublons)
-- ⚠️ **Note** : Stockage en mémoire uniquement (les données sont perdues au redémarrage)
+- ✅ Stockage Redis chiffré (Upstash TLS)
+- ⚠️ **Note** : Pas d'authentification serveur (convient pour tournois publics/privés courts)
 
 ## 🚀 Améliorations futures
 
-- [ ] Base de données persistante (MongoDB/PostgreSQL)
-- [ ] Authentification utilisateur (OAuth)
+- [ ] Authentification utilisateur OAuth (Discord/Epic)
 - [ ] Système de brackets/élimination directe
 - [ ] Statistiques et historique des tournois
 - [ ] Notifications en temps réel (WebSocket)
+- [ ] Export des résultats (PDF/CSV)
+- [ ] Support multi-jeux (Valorant, CS2, etc.)
 
 ## 📝 Licence
 

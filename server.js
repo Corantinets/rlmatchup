@@ -2,6 +2,7 @@ import express from 'express';
 import axios from 'axios';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { Redis } from '@upstash/redis';
 
 dotenv.config();
 
@@ -12,18 +13,77 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static('public'));
 
+// Configuration Redis/KV
+let redis;
+let useRedis = false;
+
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+  useRedis = true;
+  console.log('Redis (Upstash) activé ✅');
+} else {
+  console.log('⚠️ Mode local activé (Map) - Configurez Redis pour la production');
+}
+
+// Fallback Map pour développement local
 const tournaments = new Map();
+
+// Helper functions pour le stockage
+async function getTournament(id) {
+  if (useRedis) {
+    const data = await redis.get(`tournament:${id}`);
+    return data;
+  }
+  return tournaments.get(id);
+}
+
+async function setTournament(id, data) {
+  if (useRedis) {
+    await redis.set(`tournament:${id}`, data);
+    // Ajouter à la liste des tournois publics si nécessaire
+    if (data.isPublic) {
+      await redis.sadd('tournaments:public', id);
+    }
+  } else {
+    tournaments.set(id, data);
+  }
+}
+
+async function getPublicTournaments() {
+  if (useRedis) {
+    const ids = await redis.smembers('tournaments:public');
+    const tournamentsData = await Promise.all(
+      ids.map(id => redis.get(`tournament:${id}`))
+    );
+    return tournamentsData.filter(t => t && t.status === 'open');
+  }
+  return Array.from(tournaments.values()).filter(t => t.isPublic && t.status === 'open');
+}
+
+async function getTournamentByCode(code) {
+  if (useRedis) {
+    const id = await redis.get(`tournament:code:${code}`);
+    if (id) {
+      return await redis.get(`tournament:${id}`);
+    }
+    return null;
+  }
+  return Array.from(tournaments.values()).find(t => t.code === code.toUpperCase());
+}
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-app.post('/api/tournament/create', (req, res) => {
+app.post('/api/tournament/create', async (req, res) => {
   const { name, maxPlayers, teamSize, region, isPublic, balanceMode } = req.body;
   const id = Date.now().toString();
   const code = generateCode();
   
-  tournaments.set(id, {
+  const tournamentData = {
     id,
     code,
     name,
@@ -36,31 +96,37 @@ app.post('/api/tournament/create', (req, res) => {
     teams: [],
     status: 'open',
     createdAt: Date.now()
-  });
+  };
+  
+  await setTournament(id, tournamentData);
+  
+  // Stocker le mapping code -> id
+  if (useRedis) {
+    await redis.set(`tournament:code:${code}`, id);
+  }
   
   res.json({ id, code });
 });
 
-app.get('/api/tournaments/public', (req, res) => {
-  const publicTournaments = Array.from(tournaments.values())
-    .filter(t => t.isPublic && t.status === 'open')
-    .map(t => ({
-      id: t.id,
-      code: t.code,
-      name: t.name,
-      maxPlayers: t.maxPlayers,
-      teamSize: t.teamSize,
-      currentPlayers: t.registrations.length,
-      region: t.region,
-      balanceMode: t.balanceMode
-    }));
+app.get('/api/tournaments/public', async (req, res) => {
+  const allTournaments = await getPublicTournaments();
+  const publicTournaments = allTournaments.map(t => ({
+    id: t.id,
+    code: t.code,
+    name: t.name,
+    maxPlayers: t.maxPlayers,
+    teamSize: t.teamSize,
+    currentPlayers: t.registrations.length,
+    region: t.region,
+    balanceMode: t.balanceMode
+  }));
   
   res.json(publicTournaments);
 });
 
-app.get('/api/tournament/code/:code', (req, res) => {
+app.get('/api/tournament/code/:code', async (req, res) => {
   const { code } = req.params;
-  const tournament = Array.from(tournaments.values()).find(t => t.code === code.toUpperCase());
+  const tournament = await getTournamentByCode(code.toUpperCase());
   
   if (!tournament) {
     return res.status(404).json({ error: 'Code invalide' });
@@ -73,7 +139,7 @@ app.post('/api/tournament/:id/register', async (req, res) => {
   const { id } = req.params;
   const { displayName, epicId } = req.body;
   
-  const tournament = tournaments.get(id);
+  const tournament = await getTournament(id);
   
   if (!tournament) {
     return res.status(404).json({ error: 'Tournoi introuvable' });
@@ -104,6 +170,8 @@ app.post('/api/tournament/:id/register', async (req, res) => {
       mmr: playerData.mmr,
       timestamp: Date.now()
     });
+    
+    await setTournament(id, tournament);
     
     res.json({ success: true, mmr: playerData.mmr });
   } catch (error) {
@@ -143,9 +211,9 @@ async function verifyPlayer(epicId) {
   }
 }
 
-app.post('/api/tournament/:id/generate', (req, res) => {
+app.post('/api/tournament/:id/generate', async (req, res) => {
   const { id } = req.params;
-  const tournament = tournaments.get(id);
+  const tournament = await getTournament(id);
   
   if (!tournament) {
     return res.status(404).json({ error: 'Tournoi introuvable' });
@@ -179,13 +247,15 @@ app.post('/api/tournament/:id/generate', (req, res) => {
   tournament.status = 'generated';
   tournament.removedPlayers = removedPlayers;
   
+  await setTournament(id, tournament);
+  
   res.json({ success: true, teams, removedPlayers });
 });
 
 // Supprimer un joueur inscrit (créateur uniquement)
-app.delete('/api/tournament/:id/player/:epicId', (req, res) => {
+app.delete('/api/tournament/:id/player/:epicId', async (req, res) => {
   const { id, epicId } = req.params;
-  const tournament = tournaments.get(id);
+  const tournament = await getTournament(id);
   
   if (!tournament) {
     return res.status(404).json({ error: 'Tournoi introuvable' });
@@ -204,14 +274,15 @@ app.delete('/api/tournament/:id/player/:epicId', (req, res) => {
   }
   
   const removedPlayer = tournament.registrations.splice(playerIndex, 1)[0];
+  await setTournament(id, tournament);
   res.json({ success: true, player: removedPlayer });
 });
 
 // Assigner un joueur à une équipe pré-définie (créateur uniquement)
-app.post('/api/tournament/:id/player/:epicId/assign', (req, res) => {
+app.post('/api/tournament/:id/player/:epicId/assign', async (req, res) => {
   const { id, epicId } = req.params;
   const { teamNumber } = req.body;
-  const tournament = tournaments.get(id);
+  const tournament = await getTournament(id);
   
   if (!tournament) {
     return res.status(404).json({ error: 'Tournoi introuvable' });
@@ -235,6 +306,8 @@ app.post('/api/tournament/:id/player/:epicId/assign', (req, res) => {
   } else {
     player.preAssignedTeam = parseInt(teamNumber);
   }
+  
+  await setTournament(id, tournament);
   
   res.json({ success: true, player });
 });
@@ -306,10 +379,10 @@ function randomTeams(players, teamSize) {
   return teams;
 }
 
-app.get('/api/tournament/:id', (req, res) => {
+app.get('/api/tournament/:id', async (req, res) => {
   const { id } = req.params;
   const { isCreator } = req.query;
-  const tournament = tournaments.get(id);
+  const tournament = await getTournament(id);
   
   if (!tournament) {
     return res.status(404).json({ error: 'Tournoi introuvable' });
@@ -338,10 +411,10 @@ app.get('/api/tournament/:id', (req, res) => {
   res.json(tournament);
 });
 
-app.post('/api/tournament/:id/update-teams', (req, res) => {
+app.post('/api/tournament/:id/update-teams', async (req, res) => {
   const { id } = req.params;
   const { teams } = req.body;
-  const tournament = tournaments.get(id);
+  const tournament = await getTournament(id);
   
   if (!tournament) {
     return res.status(404).json({ error: 'Tournoi introuvable' });
@@ -349,6 +422,8 @@ app.post('/api/tournament/:id/update-teams', (req, res) => {
   
   tournament.teams = teams;
   tournament.status = 'generated';
+  
+  await setTournament(id, tournament);
   
   res.json({ success: true });
 });
