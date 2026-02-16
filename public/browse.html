@@ -20,7 +20,7 @@
 
   <script>
     async function loadTournaments() {
-      const response = await fetch('http://localhost:3000/api/tournaments/public');
+      const response = await fetch('/api/tournaments/public');
       const tournaments = await response.json();
       
       if (tournaments.length === 0) {

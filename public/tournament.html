@@ -76,7 +76,7 @@
         epicId: document.getElementById('epicId').value
       };
       
-      const response = await fetch(`http://localhost:3000/api/tournament/${tournamentId}/register`, {
+      const response = await fetch(`/api/tournament/${tournamentId}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -106,7 +106,7 @@
     });
     
     async function loadTournament() {
-      const url = `http://localhost:3000/api/tournament/${tournamentId}${isCreator ? '?isCreator=true' : ''}`;
+      const url = `/api/tournament/${tournamentId}${isCreator ? '?isCreator=true' : ''}`;
       const response = await fetch(url);
       const tournament = await response.json();
       currentTournament = tournament;
@@ -179,7 +179,7 @@
     }
     
     async function generateTeams() {
-      const response = await fetch(`http://localhost:3000/api/tournament/${tournamentId}/generate`, {
+      const response = await fetch(`/api/tournament/${tournamentId}/generate`, {
         method: 'POST'
       });
       
@@ -223,7 +223,7 @@
       
       const team = teamNumber === '' ? null : parseInt(teamNumber);
       
-      const response = await fetch(`http://localhost:3000/api/tournament/${tournamentId}/player/${epicId}/assign`, {
+      const response = await fetch(`/api/tournament/${tournamentId}/player/${epicId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ teamNumber: team })
@@ -252,7 +252,7 @@
     async function confirmDelete() {
       if (!playerToDelete || !isCreator) return;
       
-      const response = await fetch(`http://localhost:3000/api/tournament/${tournamentId}/player/${playerToDelete}`, {
+      const response = await fetch(`/api/tournament/${tournamentId}/player/${playerToDelete}`, {
         method: 'DELETE'
       });
       

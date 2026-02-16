@@ -62,7 +62,7 @@
         return;
       }
       
-      const response = await fetch(`http://localhost:3000/api/tournament/code/${code}`);
+      const response = await fetch(`/api/tournament/code/${code}`);
       const data = await response.json();
       
       if (data.id) {
