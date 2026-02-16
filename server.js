@@ -3,6 +3,11 @@ import axios from 'axios';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Redis } from '@upstash/redis';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -11,7 +16,7 @@ console.log('API Key loaded:', process.env.TRACKER_API_KEY ? '✅' : '❌');
 const app = express();
 app.use(express.json());
 app.use(cors());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuration Redis/KV
 let redis;
@@ -506,6 +511,23 @@ function initTestTournaments() {
 // Initialiser les tournois de test
 initTestTournaments();
 */
+
+// Routes pour servir les pages HTML
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/create.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'create.html'));
+});
+
+app.get('/browse.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'browse.html'));
+});
+
+app.get('/tournament.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'tournament.html'));
+});
 
 // Export pour Vercel (serverless)
 export default app;
