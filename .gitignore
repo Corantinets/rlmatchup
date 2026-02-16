@@ -1,0 +1,27 @@
+# Fichiers de configuration sensibles
+.env
+
+# Dépendances
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Fichiers IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Fichiers temporaires
+*.tmp
+.cache/

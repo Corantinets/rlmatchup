@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RLMatchup - Tournoi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 RLMatchup</h1>
+      <a href="index.html" class="back-link">← Retour</a>
+    </div>
+    
+    <div id="tournamentInfo"></div>
+    
+    <form id="registrationForm">
+      <h2>Inscription</h2>
+      <input type="text" id="displayName" placeholder="Pseudo" required>
+      <input type="text" id="epicId" placeholder="Epic Games ID" required>
+      <button type="submit">S'inscrire</button>
+    </form>
+    
+    <div class="info-box">
+      <p>💡 Votre Epic ID permet aux autres joueurs de vous ajouter en ami</p>
+    </div>
+    
+    <div id="message"></div>
+    
+    <div id="registrations">
+      <h2>Joueurs inscrits</h2>
+      <div id="playerList"></div>
+    </div>
+    
+    <button id="generateBtn" style="display:none;" onclick="generateTeams()">Générer les équipes</button>
+    
+    <div id="teams"></div>
+  </div>
+
+  <!-- Popup de confirmation -->
+  <div id="confirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: #2c2c2c; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
+      <h3 style="margin-top: 0; color: #ff4444;">⚠️ Confirmation</h3>
+      <p id="confirmMessage" style="color: #ccc; margin: 20px 0;"></p>
+      <div style="display: flex; gap: 15px; justify-content: center;">
+        <button onclick="cancelDelete()" style="background: #666; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; color: white;">Annuler</button>
+        <button onclick="confirmDelete()" style="background: #ff4444; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold;">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const tournamentId = urlParams.get('id');
+    const isCreator = localStorage.getItem(`tournament_creator_${tournamentId}`) === 'true';
+    const hasRegistered = localStorage.getItem(`tournament_registered_${tournamentId}`) === 'true';
+    let currentTournament = null;
+    
+    // Bloquer le formulaire si déjà inscrit
+    if (hasRegistered) {
+      const form = document.getElementById('registrationForm');
+      form.innerHTML = `
+        <div style="background: #2c2c2c; padding: 20px; border-radius: 8px; text-align: center;">
+          <p style="color: #00ff88; font-size: 1.2em;">✅ Vous êtes déjà inscrit à ce tournoi</p>
+          <p style="color: #888;">Une seule inscription par personne est autorisée</p>
+        </div>
+      `;
+    }
+    
+    document.getElementById('registrationForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const data = {
+        displayName: document.getElementById('displayName').value,
+        epicId: document.getElementById('epicId').value
+      };
+      
+      const response = await fetch(`http://localhost:3000/api/tournament/${tournamentId}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Sauvegarder qu'on s'est inscrit
+        localStorage.setItem(`tournament_registered_${tournamentId}`, 'true');
+        
+        document.getElementById('message').innerHTML = `<p class="success">✅ Inscription réussie!${isCreator ? ' MMR: ' + result.mmr : ''}</p>`;
+        
+        // Bloquer le formulaire
+        const form = document.getElementById('registrationForm');
+        form.innerHTML = `
+          <div style="background: #2c2c2c; padding: 20px; border-radius: 8px; text-align: center;">
+            <p style="color: #00ff88; font-size: 1.2em;">✅ Vous êtes inscrit!</p>
+            <p style="color: #888;">Attendez que les autres joueurs s'inscrivent</p>
+          </div>
+        `;
+        
+        loadTournament();
+      } else {
+        document.getElementById('message').innerHTML = `<p class="error">❌ ${result.error}</p>`;
+      }
+    });
+    
+    async function loadTournament() {
+      const url = `http://localhost:3000/api/tournament/${tournamentId}${isCreator ? '?isCreator=true' : ''}`;
+      const response = await fetch(url);
+      const tournament = await response.json();
+      currentTournament = tournament;
+      
+      document.getElementById('tournamentInfo').innerHTML = `
+        <div class="tournament-header">
+          <h2>${tournament.name} ${isCreator ? '👑' : ''}</h2>
+          <p class="code-display">Code: <strong>${tournament.code}</strong></p>
+          ${isCreator ? `<p style="color: #ff9500; font-size: 0.9em;">🔑 Mode créateur</p>` : ''}
+          <div class="tournament-details">
+            <span>🎮 ${tournament.teamSize}v${tournament.teamSize}</span>
+            <span>👥 ${tournament.registrations.length}/${tournament.maxPlayers}</span>
+            <span>🌍 ${tournament.region}</span>
+            <span>${tournament.balanceMode === 'balanced' ? '⚖️ Équilibré' : '🎲 Aléatoire'}</span>
+          </div>
+        </div>
+      `;
+      
+      if (tournament.status === 'open') {
+        // Affichage des joueurs inscrits
+        document.getElementById('playerList').innerHTML = tournament.registrations
+          .map(p => {
+            if (isCreator) {
+              // Calculer le nombre d'équipes qui seront générées
+              const numTeams = Math.floor(tournament.registrations.length / tournament.teamSize);
+              const teamOptions = Array.from({ length: numTeams }, (_, i) => i + 1);
+              
+              return `
+                <div class="player" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #2c2c2c; margin: 5px 0; border-radius: 5px;">
+                  <div style="flex: 1;">
+                    ${p.displayName} (${p.epicId}) - <span style="color: #00ff88;">MMR: ${p.mmr}</span>
+                    ${p.preAssignedTeam ? `<span style="color: #ff9500; margin-left: 10px;">📌 Équipe ${p.preAssignedTeam}</span>` : ''}
+                  </div>
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                    <select 
+                      onchange="assignTeam('${p.epicId}', this.value)"
+                      style="padding: 5px 10px; background: #1a1a1a; color: white; border: 1px solid #444; border-radius: 4px; cursor: pointer;"
+                    >
+                      <option value="">Équipe auto</option>
+                      ${teamOptions.map(num => `
+                        <option value="${num}" ${p.preAssignedTeam === num ? 'selected' : ''}>Équipe ${num}</option>
+                      `).join('')}
+                    </select>
+                    <button 
+                      onclick="showDeleteConfirm('${p.epicId}', '${p.displayName}')"
+                      style="background: #ff4444; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;"
+                      title="Supprimer ce joueur"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              `;
+            } else {
+              return `<div class="player">${p.displayName} (${p.epicId})</div>`;
+            }
+          })
+          .join('');
+        
+        if (tournament.registrations.length >= tournament.teamSize * 2 && isCreator) {
+          document.getElementById('generateBtn').style.display = 'block';
+        }
+      } else {
+        if (!hasRegistered && !isCreator) {
+          document.getElementById('registrationForm').style.display = 'none';
+        }
+        document.getElementById('generateBtn').style.display = 'none';
+        displayTeams(tournament);
+      }
+    }
+    
+    async function generateTeams() {
+      const response = await fetch(`http://localhost:3000/api/tournament/${tournamentId}/generate`, {
+        method: 'POST'
+      });
+      
+      loadTournament();
+    }
+    
+    function displayTeams(tournament) {
+      let html = '<h2>Équipes générées</h2>';
+      
+      if (tournament.removedPlayers && tournament.removedPlayers.length > 0) {
+        html += `<div class="removed">⚠️ Joueurs retirés: ${tournament.removedPlayers.map(p => p.displayName).join(', ')}</div>`;
+      }
+      
+      html += tournament.teams.map(team => `
+        <div class="team">
+          <h3>Équipe ${team.teamNumber}${isCreator ? ' (MMR moyen: ' + team.avgMMR + ')' : ''}</h3>
+          ${team.players.map(player => `
+            <div class="player-info">
+              <strong>${player.displayName}</strong><br>
+              Epic ID: ${player.epicId}${isCreator ? '<br>MMR: ' + player.mmr : ''}
+            </div>
+          `).join('')}
+        </div>
+      `).join('');
+      
+      if (isCreator && tournament.status === 'generated') {
+        html += `<button onclick="enableTeamEditing()" style="margin-top: 20px; background: #ff9500;">✏️ Modifier les équipes</button>`;
+      }
+      
+      document.getElementById('teams').innerHTML = html;
+    }
+    
+    function enableTeamEditing() {
+      alert('🚧 Fonctionnalité de modification manuelle en développement!\n\nPour l\'instant, vous pouvez :\n1. Regénérer les équipes\n2. Retirer des joueurs avant de générer les équipes');
+      // TODO: Implémenter le drag & drop ou système de sélection
+    }
+    
+    // Gestion de l'assignation d'équipe
+    async function assignTeam(epicId, teamNumber) {
+      if (!isCreator) return;
+      
+      const team = teamNumber === '' ? null : parseInt(teamNumber);
+      
+      const response = await fetch(`http://localhost:3000/api/tournament/${tournamentId}/player/${epicId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamNumber: team })
+      });
+      
+      if (response.ok) {
+        loadTournament();
+      }
+    }
+    
+    // Variables pour la confirmation de suppression
+    let playerToDelete = null;
+    
+    function showDeleteConfirm(epicId, displayName) {
+      playerToDelete = epicId;
+      document.getElementById('confirmMessage').textContent = 
+        `Voulez-vous vraiment supprimer ${displayName} du tournoi ?`;
+      document.getElementById('confirmModal').style.display = 'flex';
+    }
+    
+    function cancelDelete() {
+      playerToDelete = null;
+      document.getElementById('confirmModal').style.display = 'none';
+    }
+    
+    async function confirmDelete() {
+      if (!playerToDelete || !isCreator) return;
+      
+      const response = await fetch(`http://localhost:3000/api/tournament/${tournamentId}/player/${playerToDelete}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        document.getElementById('confirmModal').style.display = 'none';
+        playerToDelete = null;
+        loadTournament();
+      } else {
+        const error = await response.json();
+        alert('Erreur: ' + error.error);
+        document.getElementById('confirmModal').style.display = 'none';
+      }
+    }
+    
+    setInterval(loadTournament, 3000);
+    loadTournament();
+  </script>
+</body>
+</html>

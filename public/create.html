@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RLMatchup - Créer un tournoi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 RLMatchup</h1>
+      <a href="index.html" class="back-link">← Retour</a>
+    </div>
+    
+    <h2>Créer un tournoi</h2>
+    
+    <form id="createForm">
+      <label>Nom du tournoi</label>
+      <input type="text" id="name" placeholder="Tournoi du vendredi" required>
+      
+      <label>Format</label>
+      <select id="teamSize" required onchange="updatePlayerOptions()">
+        <option value="2">2v2</option>
+        <option value="3">3v3</option>
+        <option value="4">4v4</option>
+      </select>
+      
+      <label>Nombre de joueurs</label>
+      <select id="maxPlayers" required>
+        <option value="8">8 joueurs (4 équipes)</option>
+        <option value="16">16 joueurs (8 équipes)</option>
+        <option value="32">32 joueurs (16 équipes)</option>
+        <option value="64">64 joueurs (32 équipes)</option>
+      </select>
+      
+      <label>Région serveur</label>
+      <select id="region" required>
+        <option value="us-east">Amérique du Nord Est</option>
+        <option value="us-west">Amérique du Nord Ouest</option>
+        <option value="europe">Europe</option>
+        <option value="asia">Asie</option>
+        <option value="oceania">Océanie</option>
+        <option value="sam">Amérique du Sud</option>
+      </select>
+      
+      <label>Visibilité</label>
+      <select id="visibility" required>
+        <option value="private">Privé (code uniquement)</option>
+        <option value="public">Public (visible par tous)</option>
+      </select>
+      
+      <label>Mode d'équilibrage</label>
+      <select id="balanceMode" required>
+        <option value="balanced">Équilibré par MMR</option>
+        <option value="random">Équipes aléatoires</option>
+      </select>
+      
+      <button type="submit">Créer le tournoi</button>
+    </form>
+    
+    <div id="result"></div>
+  </div>
+
+  <script>
+    function updatePlayerOptions() {
+      const teamSize = parseInt(document.getElementById('teamSize').value);
+      const maxPlayersSelect = document.getElementById('maxPlayers');
+      
+      maxPlayersSelect.innerHTML = '';
+      
+      const options = [
+        { players: teamSize * 4, teams: 4 },
+        { players: teamSize * 8, teams: 8 },
+        { players: teamSize * 16, teams: 16 },
+        { players: teamSize * 32, teams: 32 }
+      ];
+      
+      options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.players;
+        option.textContent = `${opt.players} joueurs (${opt.teams} équipes)`;
+        maxPlayersSelect.appendChild(option);
+      });
+    }
+    
+    updatePlayerOptions();
+    
+    document.getElementById('createForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const data = {
+        name: document.getElementById('name').value,
+        maxPlayers: document.getElementById('maxPlayers').value,
+        teamSize: document.getElementById('teamSize').value,
+        region: document.getElementById('region').value,
+        isPublic: document.getElementById('visibility').value === 'public',
+        balanceMode: document.getElementById('balanceMode').value
+      };
+      
+      const response = await fetch('http://localhost:3000/api/tournament/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      const result = await response.json();
+      
+      // Sauvegarder dans localStorage que c'est le créateur
+      localStorage.setItem(`tournament_creator_${result.id}`, 'true');
+      
+      document.getElementById('result').innerHTML = `
+        <div class="success-box">
+          <h3>✅ Tournoi créé!</h3>
+          <div style="background: #2c2c2c; padding: 15px; border-radius: 8px; margin: 10px 0;">
+            <p><strong>🎮 Code du tournoi:</strong> <span style="color: #00ff88; font-size: 1.3em;">${result.code}</span></p>
+            <p style="color: #888; font-size: 0.9em;">👑 Vous êtes le créateur - vous aurez accès aux MMR et pourrez modifier les équipes</p>
+          </div>
+          <button onclick="window.location.href='tournament.html?id=${result.id}'" style="width: 100%; padding: 15px; font-size: 1.1em; margin-top: 10px;">🎯 Accéder au tournoi</button>
+        </div>
+      `;
+    });
+  </script>
+</body>
+</html>

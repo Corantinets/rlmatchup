@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RLMatchup</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 RLMatchup</h1>
+      <p>Tournois Rocket League équilibrés</p>
+    </div>
+    
+    <div class="menu-grid">
+      <div class="menu-card" onclick="window.location.href='create.html'">
+        <div class="icon">➕</div>
+        <h2>Créer un tournoi</h2>
+        <p>Organisez votre propre tournoi personnalisé</p>
+      </div>
+      
+      <div class="menu-card" onclick="window.location.href='browse.html'">
+        <div class="icon">🌐</div>
+        <h2>Tournois publics</h2>
+        <p>Rejoignez des tournois ouverts à tous</p>
+      </div>
+      
+      <div class="menu-card" onclick="showCodeInput()">
+        <div class="icon">🔑</div>
+        <h2>Rejoindre avec code</h2>
+        <p>Entrez un code de tournoi privé</p>
+      </div>
+    </div>
+    
+    <div id="codeModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeCodeInput()">&times;</span>
+        <h2>Entrer un code</h2>
+        <input type="text" id="tournamentCode" placeholder="Code du tournoi" maxlength="6">
+        <button onclick="joinByCode()">Rejoindre</button>
+        <div id="codeError"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showCodeInput() {
+      document.getElementById('codeModal').style.display = 'flex';
+    }
+    
+    function closeCodeInput() {
+      document.getElementById('codeModal').style.display = 'none';
+      document.getElementById('codeError').innerHTML = '';
+    }
+    
+    async function joinByCode() {
+      const code = document.getElementById('tournamentCode').value.trim().toUpperCase();
+      
+      if (!code) {
+        document.getElementById('codeError').innerHTML = '<p class="error">Entrez un code</p>';
+        return;
+      }
+      
+      const response = await fetch(`http://localhost:3000/api/tournament/code/${code}`);
+      const data = await response.json();
+      
+      if (data.id) {
+        window.location.href = `tournament.html?id=${data.id}`;
+      } else {
+        document.getElementById('codeError').innerHTML = '<p class="error">Code invalide</p>';
+      }
+    }
+  </script>
+</body>
+</html>

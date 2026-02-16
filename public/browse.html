@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RLMatchup - Tournois publics</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 RLMatchup</h1>
+      <a href="index.html" class="back-link">← Retour</a>
+    </div>
+    
+    <h2>Tournois publics</h2>
+    
+    <div id="tournamentList"></div>
+  </div>
+
+  <script>
+    async function loadTournaments() {
+      const response = await fetch('http://localhost:3000/api/tournaments/public');
+      const tournaments = await response.json();
+      
+      if (tournaments.length === 0) {
+        document.getElementById('tournamentList').innerHTML = '<p class="empty">Aucun tournoi public disponible</p>';
+        return;
+      }
+      
+      document.getElementById('tournamentList').innerHTML = tournaments.map(t => `
+        <div class="tournament-card" onclick="window.location.href='tournament.html?id=${t.id}'">
+          <h3>${t.name}</h3>
+          <div class="tournament-info">
+            <span>🎮 ${t.teamSize}v${t.teamSize}</span>
+            <span>👥 ${t.currentPlayers}/${t.maxPlayers}</span>
+            <span>🌍 ${t.region}</span>
+            <span>${t.balanceMode === 'balanced' ? '⚖️ Équilibré' : '🎲 Aléatoire'}</span>
+          </div>
+          <p class="code">Code: ${t.code}</p>
+        </div>
+      `).join('');
+    }
+    
+    loadTournaments();
+    setInterval(loadTournaments, 5000);
+  </script>
+</body>
+</html>
