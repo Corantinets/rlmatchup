@@ -3,13 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RLMatchup - Tournoi</title>
+  <title>Tournoi - RLMatchup</title>
+  <meta name="description" content="Page du tournoi Rocket League - Inscriptions, équipes et gestion en temps réel">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>🚀 RLMatchup</h1>
+      <h1>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="url(#rocketGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+          <defs>
+            <linearGradient id="rocketGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#00D9FF;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#A855F7;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
+          <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path>
+          <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path>
+          <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path>
+        </svg>
+        RLMatchup
+      </h1>
       <a href="index.html" class="back-link">← Retour</a>
     </div>
     
@@ -19,8 +38,14 @@
       <h2>Inscription</h2>
       <input type="text" id="displayName" placeholder="Pseudo" required>
       <input type="text" id="epicId" placeholder="Epic Games ID" required>
+      <input type="number" id="mmr" placeholder="Votre MMR (ex: 1250)" min="0" max="3000" required>
       <button type="submit">S'inscrire</button>
     </form>
+    
+    <div id="mmrInfoBox" class="info-box" style="margin-top: 10px; margin-bottom: 15px;">
+      <p>📊 Trouvez votre MMR sur <a href="https://rocketleague.tracker.network/" target="_blank" style="color: #00ff88; text-decoration: underline;">RL Tracker Network</a></p>
+      <p style="font-size: 0.9em;">→ Recherchez votre compte, puis regardez votre MMR en 2v2 (ou autre mode de ranked)</p>
+    </div>
     
     <div class="info-box">
       <p>💡 Votre Epic ID permet aux autres joueurs de vous ajouter en ami</p>
@@ -38,7 +63,7 @@
     <div id="teams"></div>
   </div>
 
-  <!-- Popup de confirmation -->
+  <!-- Popup de confirmation suppression -->
   <div id="confirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
     <div style="background: #2c2c2c; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
       <h3 style="margin-top: 0; color: #ff4444;">⚠️ Confirmation</h3>
@@ -50,20 +75,65 @@
     </div>
   </div>
 
+  <!-- Popup d'édition MMR -->
+  <div id="editMMRModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: #2c2c2c; padding: 30px; border-radius: 10px; max-width: 400px; width: 90%;">
+      <h3 style="margin-top: 0; color: #00D9FF;">✏️ Modifier le MMR</h3>
+      <p id="editMMRPlayerName" style="color: #ccc; margin-bottom: 20px;"></p>
+      <input type="number" id="newMMRInput" min="0" max="3000" style="width: 100%; padding: 12px; background: #1a1a1a; color: white; border: 2px solid #444; border-radius: 5px; margin-bottom: 20px; font-size: 16px;">
+      <div style="display: flex; gap: 15px; justify-content: center;">
+        <button onclick="cancelEditMMR()" style="background: #666; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; color: white;">Annuler</button>
+        <button onclick="confirmEditMMR()" style="background: #6B4FFF; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold;">Modifier</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup de modification des équipes -->
+  <div id="editTeamsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; overflow-y: auto;">
+    <div style="background: #2c2c2c; padding: 30px; border-radius: 10px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto;">
+      <h3 style="margin-top: 0; color: #00D9FF;">✏️ Modifier les équipes</h3>
+      <p style="color: #888; margin-bottom: 20px;">Glissez-déposez les joueurs entre les équipes ou utilisez les sélecteurs</p>
+      <div id="editTeamsContent"></div>
+      <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+        <button onclick="cancelEditTeams()" style="background: #666; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; color: white;">Annuler</button>
+        <button onclick="saveEditedTeams()" style="background: #00ff88; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; color: #0a0a1f; font-weight: bold;">💾 Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(globalThis.location.search);
     const tournamentId = urlParams.get('id');
     const isCreator = localStorage.getItem(`tournament_creator_${tournamentId}`) === 'true';
     const hasRegistered = localStorage.getItem(`tournament_registered_${tournamentId}`) === 'true';
     let currentTournament = null;
+    let myEpicId = localStorage.getItem(`tournament_epicId_${tournamentId}`);
+    
+    // SVG Icons
+    const icons = {
+      gamepad: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><line x1="6" y1="12" x2="18" y2="12"></line><line x1="12" y1="6" x2="12" y2="18"></line><rect x="3" y="7" width="18" height="10" rx="2"></rect></svg>',
+      users: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
+      globe: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>',
+      scale: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><line x1="12" y1="3" x2="12" y2="21"></line><path d="M3 7h2l3-3 3 3h2"></path><path d="M15 7h2l3-3 3 3h2"></path></svg>',
+      dice: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1"></circle><circle cx="15.5" cy="15.5" r="1"></circle></svg>',
+      crown: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="gold" stroke="gold" stroke-width="2" style="vertical-align: middle; margin-left: 6px;"><path d="M2 20h20v2H2z"></path><path d="M12 4l3 6 5-4-2 10H6L4 6l5 4z"></path></svg>',
+      key: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>',
+      smartphone: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12" y2="18"></line></svg>',
+      target: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>',
+      check: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="vertical-align: middle; margin-right: 6px;"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+      xCircle: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>'
+    };
     
     // Bloquer le formulaire si déjà inscrit
     if (hasRegistered) {
       const form = document.getElementById('registrationForm');
       form.innerHTML = `
         <div style="background: #2c2c2c; padding: 20px; border-radius: 8px; text-align: center;">
-          <p style="color: #00ff88; font-size: 1.2em;">✅ Vous êtes déjà inscrit à ce tournoi</p>
+          <p style="color: #00ff88; font-size: 1.2em;">${icons.check} Vous êtes déjà inscrit à ce tournoi</p>
           <p style="color: #888;">Une seule inscription par personne est autorisée</p>
+          <button onclick="selfUnregister()" style="margin-top: 15px; padding: 10px 20px; background: #ff4444; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+            ${icons.xCircle} Se désinscrire
+          </button>
         </div>
       `;
     }
@@ -71,9 +141,11 @@
     document.getElementById('registrationForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
+      const mmrInput = document.getElementById('mmr');
       const data = {
         displayName: document.getElementById('displayName').value,
-        epicId: document.getElementById('epicId').value
+        epicId: document.getElementById('epicId').value,
+        mmr: mmrInput && mmrInput.style.display !== 'none' ? mmrInput.value : 0
       };
       
       const response = await fetch(`/api/tournament/${tournamentId}/register`, {
@@ -85,8 +157,10 @@
       const result = await response.json();
       
       if (result.success) {
-        // Sauvegarder qu'on s'est inscrit
+        // Sauvegarder qu'on s'est inscrit et notre Epic ID
         localStorage.setItem(`tournament_registered_${tournamentId}`, 'true');
+        localStorage.setItem(`tournament_epicId_${tournamentId}`, data.epicId);
+        myEpicId = data.epicId;
         
         document.getElementById('message').innerHTML = `<p class="success">✅ Inscription réussie!${isCreator ? ' MMR: ' + result.mmr : ''}</p>`;
         
@@ -96,6 +170,9 @@
           <div style="background: #2c2c2c; padding: 20px; border-radius: 8px; text-align: center;">
             <p style="color: #00ff88; font-size: 1.2em;">✅ Vous êtes inscrit!</p>
             <p style="color: #888;">Attendez que les autres joueurs s'inscrivent</p>
+            <button onclick="selfUnregister()" style="margin-top: 15px; padding: 10px 20px; background: #ff4444; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+              🚫 Se désinscrire
+            </button>
           </div>
         `;
         
@@ -106,22 +183,80 @@
     });
     
     async function loadTournament() {
-      const url = `/api/tournament/${tournamentId}${isCreator ? '?isCreator=true' : ''}`;
-      const response = await fetch(url);
-      const tournament = await response.json();
-      currentTournament = tournament;
+      try {
+        const url = `/api/tournament/${tournamentId}${isCreator ? '?isCreator=true' : ''}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`Erreur ${response.status}: Impossible de charger le tournoi`);
+        }
+        
+        const tournament = await response.json();
+        currentTournament = tournament;
+      
+      // Adapter le formulaire selon le mode d'équilibrage
+      if (tournament.balanceMode === 'random') {
+        const mmrField = document.getElementById('mmr');
+        const mmrInfoBox = document.getElementById('mmrInfoBox');
+        if (mmrField) {
+          mmrField.style.display = 'none';
+          mmrField.removeAttribute('required');
+        }
+        if (mmrInfoBox) {
+          mmrInfoBox.style.display = 'none';
+        }
+      }
+      
+      const currentUrl = globalThis.location.href;
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(currentUrl)}`;
       
       document.getElementById('tournamentInfo').innerHTML = `
         <div class="tournament-header">
-          <h2>${tournament.name} ${isCreator ? '👑' : ''}</h2>
+          <h2>${tournament.name} ${isCreator ? icons.crown : ''}</h2>
           <p class="code-display">Code: <strong>${tournament.code}</strong></p>
-          ${isCreator ? `<p style="color: #ff9500; font-size: 0.9em;">🔑 Mode créateur</p>` : ''}
+          ${isCreator ? `<p style="color: #ff9500; font-size: 0.9em;">${icons.key} Mode créateur</p>` : ''}
           <div class="tournament-details">
-            <span>🎮 ${tournament.teamSize}v${tournament.teamSize}</span>
-            <span>👥 ${tournament.registrations.length}/${tournament.maxPlayers}</span>
-            <span>🌍 ${tournament.region}</span>
-            <span>${tournament.balanceMode === 'balanced' ? '⚖️ Équilibré' : '🎲 Aléatoire'}</span>
+            <span>${icons.gamepad} ${tournament.teamSize}v${tournament.teamSize}</span>
+            <span>${icons.users} ${tournament.registrations.length}/${tournament.maxPlayers}</span>
+            <span>${icons.globe} ${tournament.region}</span>
+            <span>${tournament.balanceMode === 'balanced' ? icons.scale + ' Équilibré' : icons.dice + ' Aléatoire'}</span>
           </div>
+          
+          <div style="margin-top: 20px; padding: 15px; background: rgba(0, 217, 255, 0.1); border: 2px solid rgba(0, 217, 255, 0.3); border-radius: 10px;">
+            <h3 style="color: #00D9FF; font-size: 1em; margin-bottom: 15px;">${icons.smartphone} Partager ce tournoi</h3>
+            <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+              <div style="text-align: center;">
+                <img src="${qrCodeUrl}" alt="QR Code" style="border-radius: 8px; background: white; padding: 10px;" width="150" height="150">
+                <p style="font-size: 0.8em; color: #888; margin-top: 5px;">Scannez pour rejoindre</p>
+              </div>
+              <div style="flex: 1; min-width: 200px;">
+                <button onclick="copyTournamentLink()" style="width: 100%; padding: 12px; margin-bottom: 10px; background: linear-gradient(135deg, #00D9FF 0%, #6B4FFF 100%); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                  <span>🔗</span>
+                  <span id="copyButtonText">Copier le lien</span>
+                </button>
+                <input type="text" id="tournamentLinkInput" value="${currentUrl}" readonly style="width: 100%; padding: 10px; background: rgba(20, 20, 45, 0.6); border: 1px solid rgba(0, 217, 255, 0.3); border-radius: 6px; color: #e0e0ff; font-size: 0.9em;">
+              </div>
+            </div>
+          </div>
+          
+          ${isCreator ? `
+          <div style="margin-top: 15px; padding: 15px; background: rgba(168, 85, 247, 0.1); border: 2px solid rgba(168, 85, 247, 0.3); border-radius: 10px;">
+            <h3 style="color: #A855F7; font-size: 1em; margin-bottom: 10px;">📺 Vue Overlay OBS</h3>
+            <p style="color: #888; font-size: 0.9em; margin-bottom: 10px;">Ajoutez cette source Browser dans OBS pour afficher les inscriptions en direct sur votre stream</p>
+            <div style="display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap;">
+              <input type="text" id="overlayLinkInput" value="${globalThis.location.origin}/overlay.html?id=${tournamentId}" readonly style="flex: 1; min-width: 200px; padding: 10px; background: rgba(20, 20, 45, 0.6); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 6px; color: #e0e0ff; font-size: 0.85em;">
+              <div style="display: flex; gap: 10px; flex-shrink: 0;">
+                <button onclick="copyOverlayLink()" style="padding: 10px 20px; background: linear-gradient(135deg, #A855F7 0%, #6B4FFF 100%); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; white-space: nowrap;">
+                  <span id="copyOverlayText">📋 Copier</span>
+                </button>
+                <button onclick="globalThis.open('/overlay.html?id=${tournamentId}', '_blank', 'width=450,height=400')" style="padding: 10px 20px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 6px; color: #A855F7; font-weight: bold; cursor: pointer; white-space: nowrap;">
+                  👁️ Aperçu
+                </button>
+              </div>
+            </div>
+            <p style="color: #666; font-size: 0.8em; margin-top: 8px;">💡 Dans OBS: Source → Browser → collez ce lien → Largeur: 400, Hauteur: auto</p>
+          </div>
+          ` : ''}
         </div>
       `;
       
@@ -133,14 +268,24 @@
               // Calculer le nombre d'équipes qui seront générées
               const numTeams = Math.floor(tournament.registrations.length / tournament.teamSize);
               const teamOptions = Array.from({ length: numTeams }, (_, i) => i + 1);
+              const isBalanced = tournament.balanceMode === 'balanced';
               
               return `
                 <div class="player" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #2c2c2c; margin: 5px 0; border-radius: 5px;">
                   <div style="flex: 1;">
-                    ${p.displayName} (${p.epicId}) - <span style="color: #00ff88;">MMR: ${p.mmr}</span>
+                    ${p.displayName} (${p.epicId})${isBalanced ? ` - <span style="color: #00ff88;">MMR: ${p.mmr}</span>` : ''}
                     ${p.preAssignedTeam ? `<span style="color: #ff9500; margin-left: 10px;">📌 Équipe ${p.preAssignedTeam}</span>` : ''}
                   </div>
                   <div style="display: flex; gap: 10px; align-items: center;">
+                    ${isBalanced ? `
+                    <button 
+                      onclick="showEditMMR('${p.epicId}', '${p.displayName}', ${p.mmr})"
+                      style="background: #6B4FFF; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;"
+                      title="Modifier le MMR"
+                    >
+                      ✏️
+                    </button>
+                    ` : ''}
                     <select 
                       onchange="assignTeam('${p.epicId}', this.value)"
                       style="padding: 5px 10px; background: #1a1a1a; color: white; border: 1px solid #444; border-radius: 4px; cursor: pointer;"
@@ -176,10 +321,22 @@
         document.getElementById('generateBtn').style.display = 'none';
         displayTeams(tournament);
       }
+      } catch (error) {
+        console.error('Erreur de chargement:', error);
+        document.getElementById('tournamentInfo').innerHTML = `
+          <div style="background: rgba(255, 68, 68, 0.2); padding: 20px; border-radius: 10px; border: 2px solid #ff4444; text-align: center;">
+            <h3 style="color: #ff4444; margin-bottom: 10px;">⚠️ Erreur de connexion</h3>
+            <p style="color: #e0e0ff; margin-bottom: 15px;">Impossible de charger le tournoi. Vérifiez votre connexion internet.</p>
+            <button onclick="location.reload()" style="padding: 10px 20px; background: #6B4FFF; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+              🔄 Réessayer
+            </button>
+          </div>
+        `;
+      }
     }
     
     async function generateTeams() {
-      const response = await fetch(`/api/tournament/${tournamentId}/generate`, {
+      await fetch(`/api/tournament/${tournamentId}/generate`, {
         method: 'POST'
       });
       
@@ -188,6 +345,7 @@
     
     function displayTeams(tournament) {
       let html = '<h2>Équipes générées</h2>';
+      const isBalanced = tournament.balanceMode === 'balanced';
       
       if (tournament.removedPlayers && tournament.removedPlayers.length > 0) {
         html += `<div class="removed">⚠️ Joueurs retirés: ${tournament.removedPlayers.map(p => p.displayName).join(', ')}</div>`;
@@ -195,33 +353,189 @@
       
       html += tournament.teams.map(team => `
         <div class="team">
-          <h3>Équipe ${team.teamNumber}${isCreator ? ' (MMR moyen: ' + team.avgMMR + ')' : ''}</h3>
+          <h3>Équipe ${team.teamNumber}${isCreator && isBalanced ? ' (MMR moyen: ' + team.avgMMR + ')' : ''}</h3>
           ${team.players.map(player => `
             <div class="player-info">
               <strong>${player.displayName}</strong><br>
-              Epic ID: ${player.epicId}${isCreator ? '<br>MMR: ' + player.mmr : ''}
+              Epic ID: ${player.epicId}${isCreator && isBalanced ? '<br>MMR: ' + player.mmr : ''}
             </div>
           `).join('')}
         </div>
       `).join('');
       
       if (isCreator && tournament.status === 'generated') {
-        html += `<button onclick="enableTeamEditing()" style="margin-top: 20px; background: #ff9500;">✏️ Modifier les équipes</button>`;
+        html += `
+          <div style="display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap;">
+            <button onclick="enableTeamEditing()" style="flex: 1; min-width: 200px; background: #ff9500; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">✏️ Modifier les équipes</button>
+            <button onclick="exportTeams()" style="flex: 1; min-width: 200px; background: linear-gradient(135deg, #00ff88 0%, #00D9FF 100%); padding: 12px; border: none; border-radius: 8px; color: #0a0a1f; font-weight: bold; cursor: pointer;">📋 Copier les équipes</button>
+          </div>
+        `;
       }
       
       document.getElementById('teams').innerHTML = html;
     }
     
+    // Fonction pour copier le lien du tournoi
+    function copyTournamentLink() {
+      const linkInput = document.getElementById('tournamentLinkInput');
+      const buttonText = document.getElementById('copyButtonText');
+      
+      linkInput.select();
+      linkInput.setSelectionRange(0, 99999); // Pour mobile
+      
+      navigator.clipboard.writeText(linkInput.value).then(() => {
+        buttonText.textContent = '✅ Copié !';
+        setTimeout(() => {
+          buttonText.textContent = 'Copier le lien';
+        }, 2000);
+      }).catch(err => {
+        // Fallback pour navigateurs anciens
+        document.execCommand('copy');
+        buttonText.textContent = '✅ Copié !';
+        setTimeout(() => {
+          buttonText.textContent = 'Copier le lien';
+        }, 2000);
+      });
+    }
+    
+    // Fonction pour copier le lien overlay OBS
+    function copyOverlayLink() {
+      const linkInput = document.getElementById('overlayLinkInput');
+      const buttonText = document.getElementById('copyOverlayText');
+      
+      linkInput.select();
+      linkInput.setSelectionRange(0, 99999); // Pour mobile
+      
+      navigator.clipboard.writeText(linkInput.value).then(() => {
+        buttonText.textContent = '✅ Copié !';
+        setTimeout(() => {
+          buttonText.textContent = '📋 Copier';
+        }, 2000);
+      }).catch(err => {
+        // Fallback pour navigateurs anciens
+        document.execCommand('copy');
+        buttonText.textContent = '✅ Copié !';
+        setTimeout(() => {
+          buttonText.textContent = '📋 Copier';
+        }, 2000);
+      });
+    }
+    
+    // Fonction pour exporter les équipes en texte
+    function exportTeams() {
+      if (!currentTournament || !currentTournament.teams) return;
+      
+      const isBalanced = currentTournament.balanceMode === 'balanced';
+      let text = `🎮 ${currentTournament.name} - Équipes\n`;
+      text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      
+      currentTournament.teams.forEach(team => {
+        text += `⚡ Équipe ${team.teamNumber}`;
+        if (isBalanced && team.avgMMR) {
+          text += ` (MMR: ${team.avgMMR})`;
+        }
+        text += `\n`;
+        
+        team.players.forEach(player => {
+          text += `  • ${player.displayName}`;
+          if (isBalanced && player.mmr) {
+            text += ` (${player.mmr})`;
+          }
+          text += `\n`;
+        });
+        text += `\n`;
+      });
+      
+      text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      text += `Code: ${currentTournament.code} | ${currentTournament.teamSize}v${currentTournament.teamSize}`;
+      
+      navigator.clipboard.writeText(text).then(() => {
+        alert('✅ Équipes copiées dans le presse-papier !\n\nVous pouvez les coller dans Discord, Twitch chat, etc.');
+      }).catch(err => {
+        // Fallback: afficher le texte dans une alerte
+        alert('Copiez ce texte :\n\n' + text);
+      });
+    }
+    
     function enableTeamEditing() {
-      alert('🚧 Fonctionnalité de modification manuelle en développement!\n\nPour l\'instant, vous pouvez :\n1. Regénérer les équipes\n2. Retirer des joueurs avant de générer les équipes');
-      // TODO: Implémenter le drag & drop ou système de sélection
+      if (!isCreator) return;
+      
+      const editContent = document.getElementById('editTeamsContent');
+      const isBalanced = currentTournament.balanceMode === 'balanced';
+      let html = '';
+      
+      currentTournament.teams.forEach((team, teamIndex) => {
+        html += `
+          <div style="background: rgba(107, 79, 255, 0.1); border: 2px solid rgba(0, 217, 255, 0.3); padding: 15px; margin: 15px 0; border-radius: 10px;">
+            <h4 style="color: #00D9FF; margin-bottom: 10px;">Équipe ${team.teamNumber}</h4>
+            <div id="team-${teamIndex}" style="min-height: 50px;">
+              ${team.players.map((player, playerIndex) => `
+                <div style="background: #1a1a1a; padding: 10px; margin: 5px 0; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #e0e0ff;">${player.displayName}${isBalanced ? ` (MMR: ${player.mmr})` : ''}</span>
+                  <select 
+                    onchange="movePlayerToTeam(${teamIndex}, ${playerIndex}, this.value)"
+                    style="padding: 5px; background: #2c2c2c; color: white; border: 1px solid #444; border-radius: 4px;"
+                  >
+                    <option value="">Déplacer vers...</option>
+                    ${currentTournament.teams.map((t, idx) => 
+                      idx !== teamIndex ? `<option value="${idx}">Équipe ${t.teamNumber}</option>` : ''
+                    ).join('')}
+                  </select>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      });
+      
+      editContent.innerHTML = html;
+      document.getElementById('editTeamsModal').style.display = 'flex';
+    }
+    
+    function movePlayerToTeam(fromTeamIndex, playerIndex, toTeamIndex) {
+      if (toTeamIndex === '') return;
+      
+      toTeamIndex = Number.parseInt(toTeamIndex);
+      const player = currentTournament.teams[fromTeamIndex].players[playerIndex];
+      
+      currentTournament.teams[fromTeamIndex].players.splice(playerIndex, 1);
+      currentTournament.teams[toTeamIndex].players.push(player);
+      
+      // Recalculer les MMR moyens
+      currentTournament.teams.forEach(team => {
+        team.avgMMR = Math.round(
+          team.players.reduce((sum, p) => sum + p.mmr, 0) / team.players.length
+        );
+      });
+      
+      enableTeamEditing();
+    }
+    
+    function cancelEditTeams() {
+      document.getElementById('editTeamsModal').style.display = 'none';
+      loadTournament();
+    }
+    
+    async function saveEditedTeams() {
+      const response = await fetch(`/api/tournament/${tournamentId}/update-teams`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teams: currentTournament.teams })
+      });
+      
+      if (response.ok) {
+        document.getElementById('editTeamsModal').style.display = 'none';
+        loadTournament();
+      } else {
+        alert('Erreur lors de la sauvegarde des équipes');
+      }
     }
     
     // Gestion de l'assignation d'équipe
     async function assignTeam(epicId, teamNumber) {
       if (!isCreator) return;
       
-      const team = teamNumber === '' ? null : parseInt(teamNumber);
+      const team = teamNumber === '' ? null : Number.parseInt(teamNumber);
       
       const response = await fetch(`/api/tournament/${tournamentId}/player/${epicId}/assign`, {
         method: 'POST',
@@ -236,6 +550,36 @@
     
     // Variables pour la confirmation de suppression
     let playerToDelete = null;
+    let playerToEdit = { epicId: null, displayName: null, currentMMR: null };
+    
+    // Fonction pour se désinscrire soi-même
+    async function selfUnregister() {
+      if (!myEpicId) {
+        alert('Erreur : impossible de trouver votre inscription');
+        return;
+      }
+      
+      if (!confirm('Voulez-vous vraiment vous désinscrire de ce tournoi ?')) {
+        return;
+      }
+      
+      const response = await fetch(`/api/tournament/${tournamentId}/player/${myEpicId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        // Supprimer les données locales
+        localStorage.removeItem(`tournament_registered_${tournamentId}`);
+        localStorage.removeItem(`tournament_epicId_${tournamentId}`);
+        myEpicId = null;
+        
+        // Rafraîchir la page pour réafficher le formulaire
+        globalThis.location.reload();
+      } else {
+        const error = await response.json();
+        alert('Erreur: ' + error.error);
+      }
+    }
     
     function showDeleteConfirm(epicId, displayName) {
       playerToDelete = epicId;
@@ -264,6 +608,47 @@
         const error = await response.json();
         alert('Erreur: ' + error.error);
         document.getElementById('confirmModal').style.display = 'none';
+      }
+    }
+    
+    // Gestion de l'édition du MMR
+    function showEditMMR(epicId, displayName, currentMMR) {
+      if (!isCreator) return;
+      
+      playerToEdit = { epicId, displayName, currentMMR };
+      document.getElementById('editMMRPlayerName').textContent = `Joueur: ${displayName}`;
+      document.getElementById('newMMRInput').value = currentMMR;
+      document.getElementById('editMMRModal').style.display = 'flex';
+    }
+    
+    function cancelEditMMR() {
+      playerToEdit = { epicId: null, displayName: null, currentMMR: null };
+      document.getElementById('editMMRModal').style.display = 'none';
+    }
+    
+    async function confirmEditMMR() {
+      if (!playerToEdit.epicId || !isCreator) return;
+      
+      const newMMR = Number.parseInt(document.getElementById('newMMRInput').value);
+      
+      if (Number.isNaN(newMMR) || newMMR < 0 || newMMR > 3000) {
+        alert('MMR invalide (doit être entre 0 et 3000)');
+        return;
+      }
+      
+      const response = await fetch(`/api/tournament/${tournamentId}/player/${playerToEdit.epicId}/mmr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mmr: newMMR })
+      });
+      
+      if (response.ok) {
+        document.getElementById('editMMRModal').style.display = 'none';
+        playerToEdit = { epicId: null, displayName: null, currentMMR: null };
+        loadTournament();
+      } else {
+        const error = await response.json();
+        alert('Erreur: ' + error.error);
       }
     }
     

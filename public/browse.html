@@ -3,13 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RLMatchup - Tournois publics</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Tournois publics - RLMatchup</title>
+  <meta name="description" content="Parcourez et rejoignez les tournois Rocket League publics disponibles">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>🚀 RLMatchup</h1>
+      <h1>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="url(#rocketGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+          <defs>
+            <linearGradient id="rocketGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#00D9FF;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#A855F7;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
+          <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path>
+          <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path>
+          <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path>
+        </svg>
+        RLMatchup
+      </h1>
       <a href="index.html" class="back-link">← Retour</a>
     </div>
     
@@ -19,27 +36,54 @@
   </div>
 
   <script>
+    // SVG Icons
+    const icons = {
+      gamepad: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><line x1="6" y1="12" x2="18" y2="12"></line><line x1="12" y1="6" x2="12" y2="18"></line><rect x="3" y="7" width="18" height="10" rx="2"></rect></svg>',
+      users: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
+      globe: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>',
+      scale: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><line x1="12" y1="3" x2="12" y2="21"></line><path d="M3 7h2l3-3 3 3h2"></path><path d="M15 7h2l3-3 3 3h2"></path></svg>',
+      dice: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1"></circle><circle cx="15.5" cy="15.5" r="1"></circle></svg>'
+    };
+    
     async function loadTournaments() {
-      const response = await fetch('/api/tournaments/public');
-      const tournaments = await response.json();
-      
-      if (tournaments.length === 0) {
-        document.getElementById('tournamentList').innerHTML = '<p class="empty">Aucun tournoi public disponible</p>';
-        return;
-      }
-      
-      document.getElementById('tournamentList').innerHTML = tournaments.map(t => `
-        <div class="tournament-card" onclick="window.location.href='tournament.html?id=${t.id}'">
-          <h3>${t.name}</h3>
-          <div class="tournament-info">
-            <span>🎮 ${t.teamSize}v${t.teamSize}</span>
-            <span>👥 ${t.currentPlayers}/${t.maxPlayers}</span>
-            <span>🌍 ${t.region}</span>
-            <span>${t.balanceMode === 'balanced' ? '⚖️ Équilibré' : '🎲 Aléatoire'}</span>
+      try {
+        const response = await fetch('/api/tournaments/public');
+        
+        if (!response.ok) {
+          throw new Error('Erreur de chargement des tournois');
+        }
+        
+        const tournaments = await response.json();
+        
+        if (tournaments.length === 0) {
+          document.getElementById('tournamentList').innerHTML = '<p class="empty">Aucun tournoi public disponible</p>';
+          return;
+        }
+        
+        document.getElementById('tournamentList').innerHTML = tournaments.map(t => `
+          <div class="tournament-card" role="button" tabindex="0" onclick="globalThis.location.href='tournament.html?id=${t.id}'" onkeypress="if(event.key==='Enter')globalThis.location.href='tournament.html?id=${t.id}'">
+            <h3>${t.name}</h3>
+            <div class="tournament-info">
+              <span>${icons.gamepad} ${t.teamSize}v${t.teamSize}</span>
+              <span>${icons.users} ${t.currentPlayers}/${t.maxPlayers}</span>
+              <span>${icons.globe} ${t.region}</span>
+              <span>${t.balanceMode === 'balanced' ? icons.scale + ' Équilibré' : icons.dice + ' Aléatoire'}</span>
+            </div>
+            <p class="code" style="font-family: 'Courier New', monospace; letter-spacing: 2px;">Code: ${t.code}</p>
           </div>
-          <p class="code">Code: ${t.code}</p>
-        </div>
-      `).join('');
+        `).join('');
+      } catch (error) {
+        console.error('Erreur:', error);
+        document.getElementById('tournamentList').innerHTML = `
+          <div style="background: rgba(255, 68, 68, 0.2); padding: 20px; border-radius: 10px; border: 2px solid #ff4444; text-align: center;">
+            <h3 style="color: #ff4444;">⚠️ Erreur de connexion</h3>
+            <p style="color: #e0e0ff; margin: 15px 0;">Impossible de charger les tournois</p>
+            <button onclick="loadTournaments()" style="padding: 10px 20px; background: #6B4FFF; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+              🔄 Réessayer
+            </button>
+          </div>
+        `;
+      }
     }
     
     loadTournaments();

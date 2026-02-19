@@ -3,30 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RLMatchup - Créer un tournoi</title>
+  <title>Créer un tournoi - RLMatchup</title>
+  <meta name="description" content="Créez votre tournoi Rocket League personnalisé avec équilibrage MMR ou mode aléatoire">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>🚀 RLMatchup</h1>
+      <h1>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="url(#rocketGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+          <defs>
+            <linearGradient id="rocketGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#00D9FF;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#A855F7;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
+          <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path>
+          <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path>
+          <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path>
+        </svg>
+        RLMatchup
+      </h1>
       <a href="index.html" class="back-link">← Retour</a>
     </div>
     
     <h2>Créer un tournoi</h2>
     
     <form id="createForm">
-      <label>Nom du tournoi</label>
+      <label for="name">Nom du tournoi</label>
       <input type="text" id="name" placeholder="Tournoi du vendredi" required>
       
-      <label>Format</label>
+      <label for="teamSize">Format</label>
       <select id="teamSize" required onchange="updatePlayerOptions()">
         <option value="2">2v2</option>
         <option value="3">3v3</option>
         <option value="4">4v4</option>
       </select>
       
-      <label>Nombre de joueurs</label>
+      <label for="maxPlayers">Nombre de joueurs</label>
       <select id="maxPlayers" required>
         <option value="8">8 joueurs (4 équipes)</option>
         <option value="16">16 joueurs (8 équipes)</option>
@@ -34,7 +53,7 @@
         <option value="64">64 joueurs (32 équipes)</option>
       </select>
       
-      <label>Région serveur</label>
+      <label for="region">Région serveur</label>
       <select id="region" required>
         <option value="us-east">Amérique du Nord Est</option>
         <option value="us-west">Amérique du Nord Ouest</option>
@@ -44,13 +63,13 @@
         <option value="sam">Amérique du Sud</option>
       </select>
       
-      <label>Visibilité</label>
+      <label for="visibility">Visibilité</label>
       <select id="visibility" required>
         <option value="private">Privé (code uniquement)</option>
         <option value="public">Public (visible par tous)</option>
       </select>
       
-      <label>Mode d'équilibrage</label>
+      <label for="balanceMode">Mode d'équilibrage</label>
       <select id="balanceMode" required>
         <option value="balanced">Équilibré par MMR</option>
         <option value="random">Équipes aléatoires</option>
@@ -64,7 +83,7 @@
 
   <script>
     function updatePlayerOptions() {
-      const teamSize = parseInt(document.getElementById('teamSize').value);
+      const teamSize = Number.parseInt(document.getElementById('teamSize').value);
       const maxPlayersSelect = document.getElementById('maxPlayers');
       
       maxPlayersSelect.innerHTML = '';
@@ -86,39 +105,63 @@
     
     updatePlayerOptions();
     
+    // SVG Icons
+    const icons = {
+      gamepad: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><line x1="6" y1="12" x2="18" y2="12"></line><line x1="12" y1="6" x2="12" y2="18"></line><rect x="3" y="7" width="18" height="10" rx="2"></rect></svg>',
+      crown: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="gold" stroke="gold" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><path d="M2 20h20v2H2z"></path><path d="M12 4l3 6 5-4-2 10H6L4 6l5 4z"></path></svg>',
+      target: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>',
+      check: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="vertical-align: middle; margin-right: 6px;"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+    };
+    
     document.getElementById('createForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const data = {
-        name: document.getElementById('name').value,
-        maxPlayers: document.getElementById('maxPlayers').value,
-        teamSize: document.getElementById('teamSize').value,
-        region: document.getElementById('region').value,
-        isPublic: document.getElementById('visibility').value === 'public',
-        balanceMode: document.getElementById('balanceMode').value
-      };
-      
-      const response = await fetch('/api/tournament/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      
-      const result = await response.json();
-      
-      // Sauvegarder dans localStorage que c'est le créateur
-      localStorage.setItem(`tournament_creator_${result.id}`, 'true');
-      
-      document.getElementById('result').innerHTML = `
-        <div class="success-box">
-          <h3>✅ Tournoi créé!</h3>
-          <div style="background: #2c2c2c; padding: 15px; border-radius: 8px; margin: 10px 0;">
-            <p><strong>🎮 Code du tournoi:</strong> <span style="color: #00ff88; font-size: 1.3em;">${result.code}</span></p>
-            <p style="color: #888; font-size: 0.9em;">👑 Vous êtes le créateur - vous aurez accès aux MMR et pourrez modifier les équipes</p>
+      try {
+        // Générer ou récupérer un ID de créateur unique
+        let creatorId = localStorage.getItem('rlmatchup_creator_id');
+        if (!creatorId) {
+          creatorId = 'creator_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          localStorage.setItem('rlmatchup_creator_id', creatorId);
+        }
+        
+        const data = {
+          name: document.getElementById('name').value,
+          maxPlayers: document.getElementById('maxPlayers').value,
+          teamSize: document.getElementById('teamSize').value,
+          region: document.getElementById('region').value,
+          isPublic: document.getElementById('visibility').value === 'public',
+          balanceMode: document.getElementById('balanceMode').value,
+          creatorId: creatorId
+        };
+        
+        const response = await fetch('/api/tournament/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        
+        // Récupérer le message d'erreur du serveur
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Erreur lors de la création du tournoi');
+        }
+        
+        // Sauvegarder dans localStorage que c'est le créateur
+        localStorage.setItem(`tournament_creator_${result.id}`, 'true');
+        
+        // Redirection directe vers le tournoi
+        window.location.href = `tournament.html?id=${result.id}`;
+      } catch (error) {
+        console.error('Erreur:', error);
+        document.getElementById('result').innerHTML = `
+          <div style="background: rgba(255, 68, 68, 0.2); padding: 20px; border-radius: 10px; border: 2px solid #ff4444; text-align: center;">
+            <h3 style="color: #ff4444;">⚠️ Erreur</h3>
+            <p style="color: #e0e0ff; margin: 10px 0;">${error.message}</p>
+            <button onclick="document.getElementById('result').innerHTML=''" style="margin-top: 15px; padding: 10px 20px; background: #6B4FFF; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Réessayer</button>
           </div>
-          <button onclick="window.location.href='tournament.html?id=${result.id}'" style="width: 100%; padding: 15px; font-size: 1.1em; margin-top: 10px;">🎯 Accéder au tournoi</button>
-        </div>
-      `;
+        `;
+      }
     });
   </script>
 </body>

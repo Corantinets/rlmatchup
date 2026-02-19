@@ -1,17 +1,14 @@
 import express from 'express';
-import axios from 'axios';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Redis } from '@upstash/redis';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config();
-
-console.log('API Key loaded:', process.env.TRACKER_API_KEY ? '✅' : '❌');
 
 const app = express();
 app.use(express.json());
@@ -45,6 +42,33 @@ async function getTournament(id) {
   return tournaments.get(id);
 }
 
+async function getAllTournaments() {
+  if (useRedis) {
+    const keys = await redis.keys('tournament:*');
+    const tournamentKeys = keys.filter(k => !k.includes(':code:'));
+    const allTournaments = await Promise.all(
+      tournamentKeys.map(key => redis.get(key))
+    );
+    return allTournaments.filter(t => t?.id);
+  }
+  return Array.from(tournaments.values());
+}
+
+async function deleteTournament(id) {
+  if (useRedis) {
+    const tournament = await redis.get(`tournament:${id}`);
+    if (tournament) {
+      await redis.del(`tournament:${id}`);
+      await redis.del(`tournament:code:${tournament.code}`);
+      if (tournament.isPublic) {
+        await redis.srem('tournaments:public', id);
+      }
+    }
+  } else {
+    tournaments.delete(id);
+  }
+}
+
 async function setTournament(id, data) {
   if (useRedis) {
     await redis.set(`tournament:${id}`, data);
@@ -63,7 +87,7 @@ async function getPublicTournaments() {
     const tournamentsData = await Promise.all(
       ids.map(id => redis.get(`tournament:${id}`))
     );
-    return tournamentsData.filter(t => t && t.status === 'open');
+    return tournamentsData.filter(t => t?.status === 'open');
   }
   return Array.from(tournaments.values()).filter(t => t.isPublic && t.status === 'open');
 }
@@ -80,11 +104,43 @@ async function getTournamentByCode(code) {
 }
 
 function generateCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  // Exclure les caractères ambigus : I, O, 0, 1 (confusion avec l, o)
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
 app.post('/api/tournament/create', async (req, res) => {
-  const { name, maxPlayers, teamSize, region, isPublic, balanceMode } = req.body;
+  const { name, maxPlayers, teamSize, region, isPublic, balanceMode, creatorId } = req.body;
+  
+  // Vérifier que le nom est unique
+  const allTournaments = await getAllTournaments();
+  const nameExists = allTournaments.some(t => 
+    t.name.toLowerCase().trim() === name.toLowerCase().trim()
+  );
+  
+  if (nameExists) {
+    return res.status(400).json({ 
+      error: 'Un tournoi avec ce nom existe déjà. Choisissez un nom différent.' 
+    });
+  }
+  
+  // Vérifier que le créateur n'a pas plus de 2 tournois actifs
+  if (creatorId) {
+    const creatorTournaments = allTournaments.filter(t => 
+      t.creatorId === creatorId && t.status !== 'deleted'
+    );
+    
+    if (creatorTournaments.length >= 2) {
+      return res.status(400).json({ 
+        error: 'Vous avez déjà 2 tournois actifs. Attendez qu\'ils se terminent ou supprimez-en un.' 
+      });
+    }
+  }
+  
   const id = Date.now().toString();
   const code = generateCode();
   
@@ -92,15 +148,17 @@ app.post('/api/tournament/create', async (req, res) => {
     id,
     code,
     name,
-    maxPlayers: parseInt(maxPlayers),
-    teamSize: parseInt(teamSize),
+    maxPlayers: Number.parseInt(maxPlayers),
+    teamSize: Number.parseInt(teamSize),
     region,
     isPublic,
     balanceMode,
     registrations: [],
     teams: [],
     status: 'open',
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    creatorId: creatorId || null,
+    teamsGeneratedAt: null
   };
   
   await setTournament(id, tournamentData);
@@ -142,7 +200,7 @@ app.get('/api/tournament/code/:code', async (req, res) => {
 
 app.post('/api/tournament/:id/register', async (req, res) => {
   const { id } = req.params;
-  const { displayName, epicId } = req.body;
+  const { displayName, epicId, mmr } = req.body;
   
   const tournament = await getTournament(id);
   
@@ -162,59 +220,29 @@ app.post('/api/tournament/:id/register', async (req, res) => {
     return res.status(400).json({ error: 'Vous êtes déjà inscrit à ce tournoi' });
   }
   
+  // Validation du MMR
+  const playerMMR = Number.parseInt(mmr);
+  if (Number.isNaN(playerMMR) || playerMMR < 0 || playerMMR > 3000) {
+    return res.status(400).json({ error: 'MMR invalide (doit être entre 0 et 3000)' });
+  }
+  
   try {
-    const playerData = await verifyPlayer(epicId);
-    
-    if (!playerData.exists) {
-      return res.status(404).json({ error: 'Compte Epic introuvable' });
-    }
-    
     tournament.registrations.push({
       displayName,
       epicId,
-      mmr: playerData.mmr,
+      mmr: playerMMR,
       timestamp: Date.now()
     });
     
     await setTournament(id, tournament);
     
-    res.json({ success: true, mmr: playerData.mmr });
+    res.json({ success: true, mmr: playerMMR });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-async function verifyPlayer(epicId) {
-  const url = `https://api.tracker.gg/api/v2/rocket-league/standard/profile/epic/${epicId}`;
-  
-  try {
-    const response = await axios.get(url, {
-      headers: { 
-        'TRN-Api-Key': process.env.TRACKER_API_KEY,
-        'Accept': 'application/json',
-        'User-Agent': 'RLMatchup/1.0'
-      }
-    });
-    
-    const rankedPlaylists = response.data.data.segments.filter(s => s.type === 'playlist');
-    const mmr = rankedPlaylists.find(p => p.metadata.name === 'Ranked Duel 2v2')?.stats?.rating?.value || 0;
-    
-    return { exists: true, mmr };
-  } catch (error) {
-    console.error('API Error:', error.response?.status, error.response?.data);
-    
-    if (error.response?.status === 403) {
-      console.log('⚠️ Clé API refusée - Mode démo activé');
-      return { exists: true, mmr: Math.floor(Math.random() * 1000) + 500 };
-    }
-    
-    if (error.response?.status === 404) {
-      return { exists: false };
-    }
-    
-    throw error;
-  }
-}
+
 
 app.post('/api/tournament/:id/generate', async (req, res) => {
   const { id } = req.params;
@@ -251,6 +279,7 @@ app.post('/api/tournament/:id/generate', async (req, res) => {
   tournament.teams = teams;
   tournament.status = 'generated';
   tournament.removedPlayers = removedPlayers;
+  tournament.teamsGeneratedAt = Date.now();
   
   await setTournament(id, tournament);
   
@@ -309,8 +338,43 @@ app.post('/api/tournament/:id/player/:epicId/assign', async (req, res) => {
   if (teamNumber === null || teamNumber === undefined) {
     delete player.preAssignedTeam;
   } else {
-    player.preAssignedTeam = parseInt(teamNumber);
+    player.preAssignedTeam = Number.parseInt(teamNumber);
   }
+  
+  await setTournament(id, tournament);
+  
+  res.json({ success: true, player });
+});
+
+// Modifier le MMR d'un joueur (créateur uniquement)
+app.post('/api/tournament/:id/player/:epicId/mmr', async (req, res) => {
+  const { id, epicId } = req.params;
+  const { mmr } = req.body;
+  const tournament = await getTournament(id);
+  
+  if (!tournament) {
+    return res.status(404).json({ error: 'Tournoi introuvable' });
+  }
+  
+  if (tournament.status !== 'open') {
+    return res.status(400).json({ error: 'Impossible de modifier le MMR après génération des équipes' });
+  }
+  
+  const player = tournament.registrations.find(
+    p => p.epicId.toLowerCase() === epicId.toLowerCase()
+  );
+  
+  if (!player) {
+    return res.status(404).json({ error: 'Joueur non trouvé' });
+  }
+  
+  // Validation du MMR
+  const newMMR = Number.parseInt(mmr);
+  if (Number.isNaN(newMMR) || newMMR < 0 || newMMR > 3000) {
+    return res.status(400).json({ error: 'MMR invalide (doit être entre 0 et 3000)' });
+  }
+  
+  player.mmr = newMMR;
   
   await setTournament(id, tournament);
   
@@ -354,7 +418,7 @@ function balanceTeams(players, teamSize) {
       const teamMMR = team.players.reduce((sum, p) => sum + p.mmr, 0);
       const minTeamMMR = minTeam.players.reduce((sum, p) => sum + p.mmr, 0);
       return teamMMR < minTeamMMR ? team : minTeam;
-    });
+    }, candidateTeams[0]);
     
     targetTeam.players.push(player);
   });
@@ -427,90 +491,14 @@ app.post('/api/tournament/:id/update-teams', async (req, res) => {
   
   tournament.teams = teams;
   tournament.status = 'generated';
+  if (!tournament.teamsGeneratedAt) {
+    tournament.teamsGeneratedAt = Date.now();
+  }
   
   await setTournament(id, tournament);
   
   res.json({ success: true });
 });
-
-// Fonction d'initialisation des tournois de test (désactivée en production)
-// Décommentez cette fonction pour créer automatiquement des tournois de test au démarrage
-/*
-function initTestTournaments() {
-  console.log('🎮 Initialisation des tournois de test...');
-  
-  // Tournoi 1: 2v2 avec 8 joueurs (vous êtes créateur)
-  const id1 = '1000000000001';
-  const code1 = 'TEST2V2';
-  const players1 = [
-    { displayName: 'Alpha', epicId: 'Alpha123', mmr: 1450 },
-    { displayName: 'Bravo', epicId: 'Bravo456', mmr: 1320 },
-    { displayName: 'Charlie', epicId: 'Charlie789', mmr: 1180 },
-    { displayName: 'Delta', epicId: 'Delta012', mmr: 1050 },
-    { displayName: 'Echo', epicId: 'Echo345', mmr: 920 },
-    { displayName: 'Foxtrot', epicId: 'Foxtrot678', mmr: 850 },
-    { displayName: 'Golf', epicId: 'Golf901', mmr: 750 },
-    { displayName: 'Hotel', epicId: 'Hotel234', mmr: 680 }
-  ];
-  
-  tournaments.set(id1, {
-    id: id1,
-    code: code1,
-    name: 'Tournoi 2v2 Test (Vous êtes créateur)',
-    maxPlayers: 8,
-    teamSize: 2,
-    region: 'eu-west',
-    isPublic: true,
-    balanceMode: 'balanced',
-    registrations: players1.map(p => ({ ...p, timestamp: Date.now() })),
-    teams: [],
-    status: 'open',
-    createdAt: Date.now()
-  });
-  
-  // Tournoi 2: 3v3 avec 12 joueurs (vous n'êtes pas créateur)
-  const id2 = '1000000000002';
-  const code2 = 'TEST3V3';
-  const players2 = [
-    { displayName: 'Titan', epicId: 'Titan111', mmr: 1520 },
-    { displayName: 'Phantom', epicId: 'Phantom222', mmr: 1440 },
-    { displayName: 'Dragon', epicId: 'Dragon333', mmr: 1350 },
-    { displayName: 'Phoenix', epicId: 'Phoenix444', mmr: 1280 },
-    { displayName: 'Viper', epicId: 'Viper555', mmr: 1190 },
-    { displayName: 'Falcon', epicId: 'Falcon666', mmr: 1100 },
-    { displayName: 'Cobra', epicId: 'Cobra777', mmr: 1020 },
-    { displayName: 'Hawk', epicId: 'Hawk888', mmr: 950 },
-    { displayName: 'Eagle', epicId: 'Eagle999', mmr: 880 },
-    { displayName: 'Wolf', epicId: 'Wolf000', mmr: 810 },
-    { displayName: 'Lion', epicId: 'Lion111', mmr: 740 },
-    { displayName: 'Tiger', epicId: 'Tiger222', mmr: 670 }
-  ];
-  
-  tournaments.set(id2, {
-    id: id2,
-    code: code2,
-    name: 'Tournoi 3v3 Test (Mode participant)',
-    maxPlayers: 12,
-    teamSize: 3,
-    region: 'us-east',
-    isPublic: true,
-    balanceMode: 'balanced',
-    registrations: players2.map(p => ({ ...p, timestamp: Date.now() })),
-    teams: [],
-    status: 'open',
-    createdAt: Date.now()
-  });
-  
-  console.log(`✅ Tournoi 2v2 créé - Code: ${code1} - ID: ${id1}`);
-  console.log(`   👑 Mode créateur: http://localhost:3000/tournament.html?id=${id1}`);
-  console.log(`   (Enregistrez dans localStorage: tournament_creator_${id1} = true)`);
-  console.log(`✅ Tournoi 3v3 créé - Code: ${code2} - ID: ${id2}`);
-  console.log(`   👤 Mode participant: http://localhost:3000/tournament.html?id=${id2}`);
-}
-
-// Initialiser les tournois de test
-initTestTournaments();
-*/
 
 // Routes pour servir les pages HTML
 app.get('/', (req, res) => {
@@ -528,6 +516,42 @@ app.get('/browse.html', (req, res) => {
 app.get('/tournament.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'tournament.html'));
 });
+
+app.get('/overlay.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'overlay.html'));
+});
+
+// Fonction de nettoyage automatique des tournois
+async function cleanupTournaments() {
+  const now = Date.now();
+  const allTournaments = await getAllTournaments();
+  
+  for (const tournament of allTournaments) {
+    if (!tournament || tournament.status === 'deleted') continue;
+    
+    // Supprimer les tournois avec équipes générées depuis plus de 15 min
+    if (tournament.teamsGeneratedAt && tournament.status === 'generated') {
+      const timeSinceGeneration = now - tournament.teamsGeneratedAt;
+      if (timeSinceGeneration > 15 * 60 * 1000) { // 15 minutes
+        console.log(`🗑️ Suppression du tournoi "${tournament.name}" (équipes générées il y a ${Math.round(timeSinceGeneration / 60000)} min)`);
+        await deleteTournament(tournament.id);
+        continue;
+      }
+    }
+    
+    // Supprimer les tournois sans équipes générées depuis plus de 30 min
+    if (!tournament.teamsGeneratedAt && tournament.status === 'open') {
+      const timeSinceCreation = now - tournament.createdAt;
+      if (timeSinceCreation > 30 * 60 * 1000) { // 30 minutes
+        console.log(`🗑️ Suppression du tournoi "${tournament.name}" (créé il y a ${Math.round(timeSinceCreation / 60000)} min sans équipes)`);
+        await deleteTournament(tournament.id);
+      }
+    }
+  }
+}
+
+// Lancer le nettoyage toutes les 2 minutes
+setInterval(cleanupTournaments, 2 * 60 * 1000);
 
 // Export pour Vercel (serverless)
 export default app;

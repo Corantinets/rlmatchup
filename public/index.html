@@ -4,30 +4,75 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RLMatchup</title>
+  <meta name="description" content="Créez et gérez des tournois Rocket League avec équilibrage automatique des équipes. Overlay OBS, QR codes, et streaming-friendly.">
+  <meta property="og:title" content="RLMatchup - Tournois Rocket League">
+  <meta property="og:description" content="Plateforme de tournois Rocket League avec équilibrage MMR et outils streaming">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://matchuprl.vercel.app">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>🚀 RLMatchup</h1>
+      <h1>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="url(#rocketGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+          <defs>
+            <linearGradient id="rocketGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#00D9FF;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#A855F7;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
+          <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path>
+          <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path>
+          <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path>
+        </svg>
+        RLMatchup
+      </h1>
       <p>Tournois Rocket League équilibrés</p>
     </div>
     
     <div class="menu-grid">
-      <div class="menu-card" onclick="window.location.href='create.html'">
-        <div class="icon">➕</div>
+      <div class="menu-card" role="button" tabindex="0" onclick="globalThis.location.href='create.html'" onkeypress="if(event.key==='Enter')globalThis.location.href='create.html'">
+        <div class="icon" style="color: #A855F7;">➕</div>
         <h2>Créer un tournoi</h2>
         <p>Organisez votre propre tournoi personnalisé</p>
       </div>
       
-      <div class="menu-card" onclick="window.location.href='browse.html'">
-        <div class="icon">🌐</div>
+      <div class="menu-card" role="button" tabindex="0" onclick="globalThis.location.href='browse.html'" onkeypress="if(event.key==='Enter')globalThis.location.href='browse.html'">
+        <div class="icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="url(#gradient2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <defs>
+              <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#6B4FFF;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#00D9FF;stop-opacity:1" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+        </div>
         <h2>Tournois publics</h2>
         <p>Rejoignez des tournois ouverts à tous</p>
       </div>
       
-      <div class="menu-card" onclick="showCodeInput()">
-        <div class="icon">🔑</div>
+      <div class="menu-card" role="button" tabindex="0" onclick="showCodeInput()" onkeypress="if(event.key==='Enter')showCodeInput()">
+        <div class="icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="url(#gradient3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <defs>
+              <linearGradient id="gradient3" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#A855F7;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#6B4FFF;stop-opacity:1" />
+              </linearGradient>
+            </defs>
+            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+          </svg>
+        </div>
         <h2>Rejoindre avec code</h2>
         <p>Entrez un code de tournoi privé</p>
       </div>
@@ -35,7 +80,7 @@
     
     <div id="codeModal" class="modal">
       <div class="modal-content">
-        <span class="close" onclick="closeCodeInput()">&times;</span>
+        <span class="close" role="button" tabindex="0" onclick="closeCodeInput()" onkeypress="if(event.key==='Enter')closeCodeInput()">&times;</span>
         <h2>Entrer un code</h2>
         <input type="text" id="tournamentCode" placeholder="Code du tournoi" maxlength="6">
         <button onclick="joinByCode()">Rejoindre</button>
@@ -62,13 +107,23 @@
         return;
       }
       
-      const response = await fetch(`/api/tournament/code/${code}`);
-      const data = await response.json();
-      
-      if (data.id) {
-        window.location.href = `tournament.html?id=${data.id}`;
-      } else {
-        document.getElementById('codeError').innerHTML = '<p class="error">Code invalide</p>';
+      try {
+        const response = await fetch(`/api/tournament/code/${code}`);
+        
+        if (!response.ok) {
+          throw new Error('Code invalide ou erreur réseau');
+        }
+        
+        const data = await response.json();
+        
+        if (data.id) {
+          globalThis.location.href = `tournament.html?id=${data.id}`;
+        } else {
+          document.getElementById('codeError').innerHTML = '<p class="error">Code invalide</p>';
+        }
+      } catch (error) {
+        console.error('Erreur:', error);
+        document.getElementById('codeError').innerHTML = '<p class="error">⚠️ Erreur de connexion ou code invalide</p>';
       }
     }
   </script>
